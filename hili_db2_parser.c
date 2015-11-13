@@ -1397,7 +1397,6 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 	}
     
     
-    
     int a;
     hili_dummy_mitm_processing(ptr->mitm_flow_ptr, db2_data_submit);
     
