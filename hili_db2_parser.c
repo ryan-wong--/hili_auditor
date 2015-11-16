@@ -1396,7 +1396,6 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 		printf("CACHED_LENGTH is %d at line %d\n\n", ptr->response_fifo_cache_ptr->size,__LINE__); 
 	}
     
-    
     int a;
     hili_dummy_mitm_processing(ptr->mitm_flow_ptr, db2_data_submit);
     
