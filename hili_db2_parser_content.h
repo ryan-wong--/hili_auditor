@@ -76,6 +76,7 @@ enum{
 enum{
 	PARA_STRING = 0x3f,
 	PARA_INT = 0x03,
+    PARA_UNKNOWN = 0X00,
 };
 enum{
     SEND_NOT_IMMEDIATELY = 0,
