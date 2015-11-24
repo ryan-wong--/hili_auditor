@@ -521,27 +521,32 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
 			return HILI_DB2_ERROR;
 		}
 		
-        printf("passwd_fillin reach at line %d\n", __LINE__);
         drda_len[0] = ptr->drda_pkt_length >> 8;
         drda_len[1] = ptr->drda_pkt_length & 0x00ff;
         printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
         para_len[0] = (ptr->pwd_len+4) >> 8;
         para_len[1] = (ptr->pwd_len+4) & 0x00ff;
         printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
+        
         //get the new password
-		//passwd_fillin_result = passwd_fillin(fillin_ptr);
+		passwd_fillin_result = passwd_fillin(fillin_ptr);
         old_passwd_size = ptr->pwd_len;
-        fillin_ptr->user_password[0] = 0xf1;
+         /* fillin_ptr->user_password[0] = 0xf1;
         fillin_ptr->user_password[1] = 0xf2;
         fillin_ptr->user_password[2] = 0xf3;
         fillin_ptr->user_password[3] = 0xf4;
         fillin_ptr->user_password[4] = 0xf5;
         fillin_ptr->user_password[5] = 0xf6;
 		passwd_fillin_result = 1;//codes before this line shall be altered
-        new_passwd_size = 6; 
-        count = 0;
+        new_passwd_size = 6;  */
+        new_passwd_size = 0;
+        while(fillin_ptr[new_passwd_size]!=0){
+            new_passwd_size ++;
+        }
+        
         ptr->drda_pkt_length = ptr->drda_pkt_length - old_passwd_size + new_passwd_size;
         ptr->pwd_len = ptr->pwd_len - old_passwd_size + new_passwd_size;
+        
         drda_len[0] = ptr->drda_pkt_length >> 8;
         drda_len[1] = ptr->drda_pkt_length & 0x00ff;
         printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
@@ -551,8 +556,6 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
         para_len[0] = (ptr->pwd_len+4) >> 8;
         para_len[1] = (ptr->pwd_len+4) & 0x00ff;
         printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
-        
-        printf("passwd_fillin reach at line %d\n", __LINE__);
         
         int i;
         uint8_t parser_cursor[1] = {0};
