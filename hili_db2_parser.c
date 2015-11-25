@@ -530,145 +530,7 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
         
         //get the new password
 		passwd_fillin_result = passwd_fillin(fillin_ptr);
-        old_passwd_size = ptr->pwd_len;
-         /* fillin_ptr->user_password[0] = 0xf1;
-        fillin_ptr->user_password[1] = 0xf2;
-        fillin_ptr->user_password[2] = 0xf3;
-        fillin_ptr->user_password[3] = 0xf4;
-        fillin_ptr->user_password[4] = 0xf5;
-        fillin_ptr->user_password[5] = 0xf6;
-		passwd_fillin_result = 1;//codes before this line shall be altered
-        new_passwd_size = 6;  */
-        new_passwd_size = 0;
-        while(fillin_ptr[new_passwd_size]!=0){
-            new_passwd_size ++;
-        }
-        
-        ptr->drda_pkt_length = ptr->drda_pkt_length - old_passwd_size + new_passwd_size;
-        ptr->pwd_len = ptr->pwd_len - old_passwd_size + new_passwd_size;
-        
-        drda_len[0] = ptr->drda_pkt_length >> 8;
-        drda_len[1] = ptr->drda_pkt_length & 0x00ff;
-        printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
-        drda_0len[0] = (ptr->drda_pkt_length-6) >> 8;
-        drda_0len[1] = (ptr->drda_pkt_length-6) & 0x00ff;
-        printf("\n\n%x, %x\n\n", drda_0len[0], drda_0len[1]);
-        para_len[0] = (ptr->pwd_len+4) >> 8;
-        para_len[1] = (ptr->pwd_len+4) & 0x00ff;
-        printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
-        
-        int i;
-        uint8_t parser_cursor[1] = {0};
-        for(i=0; i<ptr->drda_pkt_length+40; i++){
-            idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, offset+i, 1, parser_cursor);
-            if(parser_cursor[0]<0x10)
-                printf("0%x ", parser_cursor[0]);
-            else
-                printf("%x ", parser_cursor[0]);
-            if((i+1)%8==0)
-                printf("\n");
-        }
-        printf("\n");
-        
-        //cache the content behind the original password
-        idpi_util_fifo_cache_t* temp0_fifo = idpi_util_fifo_cache_malloc();
-        idpi_util_fifo_cache_t* temp_fifo = idpi_util_fifo_cache_malloc();
-        int cache_left = ptr->request_fifo_cache_ptr->size - (offset+ptr->pwd_location+password_length);
-        temp0_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset, ptr->pwd_location);
-        temp_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset+ptr->pwd_location+password_length, cache_left);
-        
-        printf("temp0_fifo.size = %d at line %d\n", temp0_fifo->size, __LINE__);
-        for(i=0; i<temp0_fifo->size; i++){
-            idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-            if(parser_cursor[0]<0x10)
-                printf("0%x ", parser_cursor[0]);
-            else
-                printf("%x ", parser_cursor[0]);
-            if((i+1)%8==0)
-                printf("\n");
-        }
-        printf("\ntemp_fifo.size = %d at line %d\n", temp_fifo->size, __LINE__);
-        for(i=0; i<40; i++){
-            idpi_util_fifo_cache_read(temp_fifo, i, 1, parser_cursor);
-            if(parser_cursor[0]<0x10)
-                printf("0%x ", parser_cursor[0]);
-            else
-                printf("%x ", parser_cursor[0]);
-            if((i+1)%8==0)
-                printf("\n");
-        }
-        
-        //cut the original content before and behind the original password
-        // for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
-            // idpi_util_fifo_cache_remove(ptr->request_fifo_cache_ptr, 1, NULL);
-        // }
-        
-        idpi_util_fifo_cache_clear(ptr->request_fifo_cache_ptr);
-        printf("\nafter clear: \n");
-        // idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
-        // if(parser_cursor[0]<0x10)
-            // printf("0%x ", parser_cursor[0]);
-        // else
-            // printf("%x ", parser_cursor[0]);
-        
-        //add the content before the original password
-        idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp0_fifo, 0, temp0_fifo->size);
-        printf("\nafter add0: \n");
-        for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
-            //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-            idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
-            if(parser_cursor[0]<0x10)
-                printf("0%x ", parser_cursor[0]);
-            else
-                printf("%x ", parser_cursor[0]);
-            if((i+1)%8==0)
-                printf("\n");
-        }
-        
-        //add the new password
-        for(i=0; i<6; i++){
-            parser_cursor[0] = 0xf1+i;
-            parser_cursor[0] = fillin_ptr->user_password[i];
-            //idpi_util_fifo_cache_add(temp0_fifo, parser_cursor, 1);
-            idpi_util_fifo_cache_add(ptr->request_fifo_cache_ptr, parser_cursor, 1);
-            printf("\nadding %d, parser_cursor[0]=%x: \n", i, parser_cursor[0]);
-            int j;
-            for(j=0; j<54+i; j++){
-                //idpi_util_fifo_cache_read(temp0_fifo, j, 1, parser_cursor);
-                idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, j, 1, parser_cursor);
-                if(parser_cursor[0]<0x10)
-                    printf("0%x ", parser_cursor[0]);
-                else
-                    printf("%x ", parser_cursor[0]);
-                if((j+1)%8==0)
-                    printf("\n");
-            }
-            printf("\n");
-        }
-        
-        
-        //add the content behind the original password
-        //idpi_util_fifo_cache_cat(temp0_fifo, temp_fifo, 0, temp_fifo->size);
-        idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp_fifo, 0, temp_fifo->size);
-        printf("\nafter cat: \n");
-        for(i=0; i<ptr->drda_pkt_length+40; i++){
-            //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-            idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
-            if(parser_cursor[0]<0x10)
-                printf("0%x ", parser_cursor[0]);
-            else
-                printf("%x ", parser_cursor[0]);
-            if((i+1)%8==0)
-                printf("\n");
-        }
-        printf("\n");
-        
-        idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset, drda_len, 2);
-        idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset+6, drda_0len, 2);
-        idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset+ptr->pwd_location-4, para_len, 2);
-        
-		idpi_util_fifo_cache_free(temp0_fifo);
-        idpi_util_fifo_cache_free(temp_fifo);
+        //passwd_fillin_result = 1;//codes before this line shall be altered
         
 		switch(passwd_fillin_result)
 		{
@@ -682,8 +544,142 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
 				#endif
 				return 0;
 			case 1://FILLIN SUCCESS
-				//strcpy(password, fillin_ptr->user_password);
+            
+                /* fillin_ptr->user_password[0] = 0xf1;
+                fillin_ptr->user_password[1] = 0xf2;
+                fillin_ptr->user_password[2] = 0xf3;
+                fillin_ptr->user_password[3] = 0xf4;
+                fillin_ptr->user_password[4] = 0xf5;
+                fillin_ptr->user_password[5] = 0xf6;
+                 */
                 
+                old_passwd_size = ptr->pwd_len;
+                new_passwd_size = 0;
+                while(fillin_ptr->user_password[new_passwd_size]!=0){
+                    new_passwd_size ++;
+                }
+                
+                ptr->drda_pkt_length = ptr->drda_pkt_length - old_passwd_size + new_passwd_size;
+                ptr->pwd_len = ptr->pwd_len - old_passwd_size + new_passwd_size;
+                
+                drda_len[0] = ptr->drda_pkt_length >> 8;
+                drda_len[1] = ptr->drda_pkt_length & 0x00ff;
+                printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
+                drda_0len[0] = (ptr->drda_pkt_length-6) >> 8;
+                drda_0len[1] = (ptr->drda_pkt_length-6) & 0x00ff;
+                printf("\n\n%x, %x\n\n", drda_0len[0], drda_0len[1]);
+                para_len[0] = (ptr->pwd_len+4) >> 8;
+                para_len[1] = (ptr->pwd_len+4) & 0x00ff;
+                printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
+                
+                
+                int i;
+                uint8_t parser_cursor[1] = {0};
+                for(i=0; i<ptr->drda_pkt_length+40; i++){
+                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, offset+i, 1, parser_cursor);
+                    if(parser_cursor[0]<0x10)
+                        printf("0%x ", parser_cursor[0]);
+                    else
+                        printf("%x ", parser_cursor[0]);
+                    if((i+1)%8==0)
+                        printf("\n");
+                }
+                printf("\n");
+                
+                //cache the content behind the original password
+                idpi_util_fifo_cache_t* temp0_fifo = idpi_util_fifo_cache_malloc();
+                idpi_util_fifo_cache_t* temp_fifo = idpi_util_fifo_cache_malloc();
+                int cache_left = ptr->request_fifo_cache_ptr->size - (offset+ptr->pwd_location+password_length);
+                temp0_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset, ptr->pwd_location);
+                temp_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset+ptr->pwd_location+password_length, cache_left);
+                
+                printf("temp0_fifo.size = %d at line %d\n", temp0_fifo->size, __LINE__);
+                for(i=0; i<temp0_fifo->size; i++){
+                    idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
+                    if(parser_cursor[0]<0x10)
+                        printf("0%x ", parser_cursor[0]);
+                    else
+                        printf("%x ", parser_cursor[0]);
+                    if((i+1)%8==0)
+                        printf("\n");
+                }
+                printf("\ntemp_fifo.size = %d at line %d\n", temp_fifo->size, __LINE__);
+                for(i=0; i<40; i++){
+                    idpi_util_fifo_cache_read(temp_fifo, i, 1, parser_cursor);
+                    if(parser_cursor[0]<0x10)
+                        printf("0%x ", parser_cursor[0]);
+                    else
+                        printf("%x ", parser_cursor[0]);
+                    if((i+1)%8==0)
+                        printf("\n");
+                }
+                
+                //cut the original content before and behind the original password
+                // for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
+                    // idpi_util_fifo_cache_remove(ptr->request_fifo_cache_ptr, 1, NULL);
+                // }
+                
+                idpi_util_fifo_cache_clear(ptr->request_fifo_cache_ptr);
+                printf("\nafter clear: \n");
+                
+                //add the content before the original password
+                idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp0_fifo, 0, temp0_fifo->size);
+                printf("\nafter add0: \n");
+                for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
+                    //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
+                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
+                    if(parser_cursor[0]<0x10)
+                        printf("0%x ", parser_cursor[0]);
+                    else
+                        printf("%x ", parser_cursor[0]);
+                    if((i+1)%8==0)
+                        printf("\n");
+                }
+                
+                //add the new password
+                for(i=0; i<6; i++){
+                    parser_cursor[0] = 0xf1+i;
+                    parser_cursor[0] = fillin_ptr->user_password[i];
+                    //idpi_util_fifo_cache_add(temp0_fifo, parser_cursor, 1);
+                    idpi_util_fifo_cache_add(ptr->request_fifo_cache_ptr, parser_cursor, 1);
+                    printf("\nadding %d, parser_cursor[0]=%x: \n", i, parser_cursor[0]);
+                    int j;
+                    for(j=0; j<54+i; j++){
+                        //idpi_util_fifo_cache_read(temp0_fifo, j, 1, parser_cursor);
+                        idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, j, 1, parser_cursor);
+                        if(parser_cursor[0]<0x10)
+                            printf("0%x ", parser_cursor[0]);
+                        else
+                            printf("%x ", parser_cursor[0]);
+                        if((j+1)%8==0)
+                            printf("\n");
+                    }
+                    printf("\n");
+                }
+                
+                
+                //add the content behind the original password
+                //idpi_util_fifo_cache_cat(temp0_fifo, temp_fifo, 0, temp_fifo->size);
+                idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp_fifo, 0, temp_fifo->size);
+                printf("\nafter cat: \n");
+                for(i=0; i<ptr->drda_pkt_length+40; i++){
+                    //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
+                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
+                    if(parser_cursor[0]<0x10)
+                        printf("0%x ", parser_cursor[0]);
+                    else
+                        printf("%x ", parser_cursor[0]);
+                    if((i+1)%8==0)
+                        printf("\n");
+                }
+                printf("\n");
+                
+                idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset, drda_len, 2);
+                idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset+6, drda_0len, 2);
+                idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset+ptr->pwd_location-4, para_len, 2);
+                
+                idpi_util_fifo_cache_free(temp0_fifo);
+                idpi_util_fifo_cache_free(temp_fifo);
 				printf("[NOTE]password fillin module is in function at line %d\n",__LINE__);
 				#ifndef CONTENT_H_IN_TEST
 					hili_common_fpa_free(fillin_ptr, CVM_FPA_256B_POOL, CVM_FPA_256B_POOL_SIZE/CVMX_CACHE_LINE_SIZE);
@@ -1242,20 +1238,14 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                     printf("\n");
             }
             printf(" at line %d\n", __LINE__);
-            if(1){
-                hili_db2_parse_passwd_fillin_process(ptr, username, password, ptr->pwd_len, offset);
+            
+            if(ptr->function_flags & 0x04){
+                int fillin_result = hili_db2_parse_passwd_fillin_process(ptr, username, password, ptr->pwd_len, offset);
+                if(fillin_result != 1 && fillin_result != 2){
+                    return HILI_DB2_ERROR;
+                }
             }
-            printf("after fillin: \n");
-            for(i=0; i<ptr->drda_pkt_length+40; i++){
-                idpi_util_fifo_cache_read(fifo_cache_ptr, offset+i, 1, parser_cursor);
-                if(parser_cursor[0]<0x10)
-                    printf("0%x ", parser_cursor[0]);
-                else
-                    printf("%x ", parser_cursor[0]);
-                if((i+1)%8==0)
-                    printf("\n");
-            }
-            printf(" at line %d\n", __LINE__);
+            
 			return ptr->request_fifo_cache_ptr->size;
             break;
 		}
