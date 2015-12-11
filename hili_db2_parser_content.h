@@ -238,11 +238,14 @@ typedef struct/*record the information of cache and buffer*/
     uint8_t cli_mac[6];
 	uint8_t srv_mac[6];
     uint64_t magic_number;
-    uint16_t pre_len;
     uint16_t tail_len;
+    uint8_t stt_prepared;
 
     uint8_t log_location[3];/* mark the beginning add of each valid content */
     uint32_t log_length[3];
+    uint8_t pwd_location;
+    uint8_t pwd_len;
+    uint8_t old_pwd_len;
     uint16_t num_para;		//for para mode
     uint16_t qrydsc_len;
     uint16_t qrydta_len;
