@@ -27,16 +27,18 @@ void hili_db2_parse_itoa (int n, char s[])
 {
     int i, sign, len;
     char temp;
-    if((sign=n) < 0)//record the sign
+    if((sign=n) < 0) {//record the sign
         n = -n;
+    }
     
     i = 0;
     do {
         s[i++] = n%10 + '0';//get next byte
     }
     while((n/=10) > 0);//delete the byte
-    if(sign<0)
+    if(sign<0) {
         s[i++] = '-';
+    }
     s[i] = '\0';
     len = strlen(s);
     for(i=0; i<len/2; i++){
@@ -269,13 +271,13 @@ int hili_db2_parse_kill_flow(void* drda_flow_ptr)
 		{
 			hili_send_module_send_log_add_time(ptr->session_handle, SES_LOGOUT_TIME, logout_time, SEND_NOT_IMMEDIATELY);
 			temp_ses_log = hili_send_module_send_log_send_immediately(ptr->session_handle);
-            printf("\nSEND SESSION LOG is %d at line %d\n\n", temp_ses_log, __LINE__);
+            //printf("\nSEND SESSION LOG is %d at line %d\n\n", temp_ses_log, __LINE__);
             hili_send_module_send_log_finish (ptr->session_handle);
 		}
 		if(ptr->operation_handle)
 		{
             temp_opr_log = hili_send_module_send_log_send_immediately(ptr->operation_handle);
-            printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
+            //printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
 			hili_send_module_send_log_finish (ptr->operation_handle);
 		}
 		
@@ -486,10 +488,12 @@ int hili_db2_parse_paramode_logging(hili_db2_parser_t* drda_flow_ptr, uint64_t o
 int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char *username, uint8_t *password, uint8_t password_length, uint64_t offset)
 {
 	//return 0;
+    int i;
 	hili_db2_parser_t *ptr = drda_flow_ptr;
 	passwd_fillin_info_t *fillin_ptr;
 	int count, passwd_fillin_result, old_passwd_size, new_passwd_size;
     uint8_t drda_len[2], drda_0len[2], para_len[2];
+    uint8_t parser_cursor[1] = {0};
 #ifndef CONTENT_H_IN_TEST
 	fillin_ptr = (passwd_fillin_info_t *)hili_common_fpa_alloc(CVM_FPA_256B_POOL);
 #endif	
@@ -523,10 +527,10 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
 		
         drda_len[0] = ptr->drda_pkt_length >> 8;
         drda_len[1] = ptr->drda_pkt_length & 0x00ff;
-        printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
+        //printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
         para_len[0] = (ptr->pwd_len+4) >> 8;
         para_len[1] = (ptr->pwd_len+4) & 0x00ff;
-        printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
+        //printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
         
         //get the new password
 		passwd_fillin_result = passwd_fillin(fillin_ptr);
@@ -545,13 +549,12 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
 				return 0;
 			case 1://FILLIN SUCCESS
             
-                /* fillin_ptr->user_password[0] = 0xf1;
+                /*fillin_ptr->user_password[0] = 0xf1;
                 fillin_ptr->user_password[1] = 0xf2;
                 fillin_ptr->user_password[2] = 0xf3;
                 fillin_ptr->user_password[3] = 0xf4;
                 fillin_ptr->user_password[4] = 0xf5;
-                fillin_ptr->user_password[5] = 0xf6;
-                 */
+                fillin_ptr->user_password[5] = 0xf6;*/
                 
                 old_passwd_size = ptr->pwd_len;
                 new_passwd_size = 0;
@@ -564,27 +567,13 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
                 
                 drda_len[0] = ptr->drda_pkt_length >> 8;
                 drda_len[1] = ptr->drda_pkt_length & 0x00ff;
-                printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
+                //printf("\n\n%x, %x\n\n", drda_len[0], drda_len[1]);
                 drda_0len[0] = (ptr->drda_pkt_length-6) >> 8;
                 drda_0len[1] = (ptr->drda_pkt_length-6) & 0x00ff;
-                printf("\n\n%x, %x\n\n", drda_0len[0], drda_0len[1]);
+                //printf("\n\n%x, %x\n\n", drda_0len[0], drda_0len[1]);
                 para_len[0] = (ptr->pwd_len+4) >> 8;
                 para_len[1] = (ptr->pwd_len+4) & 0x00ff;
-                printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
-                
-                
-                int i;
-                uint8_t parser_cursor[1] = {0};
-                for(i=0; i<ptr->drda_pkt_length+40; i++){
-                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, offset+i, 1, parser_cursor);
-                    if(parser_cursor[0]<0x10)
-                        printf("0%x ", parser_cursor[0]);
-                    else
-                        printf("%x ", parser_cursor[0]);
-                    if((i+1)%8==0)
-                        printf("\n");
-                }
-                printf("\n");
+                //printf("\n\n%x, %x\n\n", para_len[0], para_len[1]);
                 
                 //cache the content behind the original password
                 idpi_util_fifo_cache_t* temp0_fifo = idpi_util_fifo_cache_malloc();
@@ -593,86 +582,28 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
                 temp0_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset, ptr->pwd_location);
                 temp_fifo = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, offset+ptr->pwd_location+password_length, cache_left);
                 
-                printf("temp0_fifo.size = %d at line %d\n", temp0_fifo->size, __LINE__);
-                for(i=0; i<temp0_fifo->size; i++){
-                    idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-                    if(parser_cursor[0]<0x10)
-                        printf("0%x ", parser_cursor[0]);
-                    else
-                        printf("%x ", parser_cursor[0]);
-                    if((i+1)%8==0)
-                        printf("\n");
-                }
-                printf("\ntemp_fifo.size = %d at line %d\n", temp_fifo->size, __LINE__);
-                for(i=0; i<40; i++){
-                    idpi_util_fifo_cache_read(temp_fifo, i, 1, parser_cursor);
-                    if(parser_cursor[0]<0x10)
-                        printf("0%x ", parser_cursor[0]);
-                    else
-                        printf("%x ", parser_cursor[0]);
-                    if((i+1)%8==0)
-                        printf("\n");
-                }
-                
                 //cut the original content before and behind the original password
                 // for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
                     // idpi_util_fifo_cache_remove(ptr->request_fifo_cache_ptr, 1, NULL);
                 // }
                 
                 idpi_util_fifo_cache_clear(ptr->request_fifo_cache_ptr);
-                printf("\nafter clear: \n");
                 
                 //add the content before the original password
                 idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp0_fifo, 0, temp0_fifo->size);
-                printf("\nafter add0: \n");
-                for(i=0; i<ptr->request_fifo_cache_ptr->size; i++){
-                    //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
-                    if(parser_cursor[0]<0x10)
-                        printf("0%x ", parser_cursor[0]);
-                    else
-                        printf("%x ", parser_cursor[0]);
-                    if((i+1)%8==0)
-                        printf("\n");
-                }
                 
                 //add the new password
-                for(i=0; i<6; i++){
-                    parser_cursor[0] = 0xf1+i;
+                for(i=0; i<new_passwd_size; i++){
                     parser_cursor[0] = fillin_ptr->user_password[i];
                     //idpi_util_fifo_cache_add(temp0_fifo, parser_cursor, 1);
                     idpi_util_fifo_cache_add(ptr->request_fifo_cache_ptr, parser_cursor, 1);
-                    printf("\nadding %d, parser_cursor[0]=%x: \n", i, parser_cursor[0]);
-                    int j;
-                    for(j=0; j<54+i; j++){
-                        //idpi_util_fifo_cache_read(temp0_fifo, j, 1, parser_cursor);
-                        idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, j, 1, parser_cursor);
-                        if(parser_cursor[0]<0x10)
-                            printf("0%x ", parser_cursor[0]);
-                        else
-                            printf("%x ", parser_cursor[0]);
-                        if((j+1)%8==0)
-                            printf("\n");
-                    }
-                    printf("\n");
                 }
                 
                 
                 //add the content behind the original password
                 //idpi_util_fifo_cache_cat(temp0_fifo, temp_fifo, 0, temp_fifo->size);
                 idpi_util_fifo_cache_cat(ptr->request_fifo_cache_ptr, temp_fifo, 0, temp_fifo->size);
-                printf("\nafter cat: \n");
-                for(i=0; i<ptr->drda_pkt_length+40; i++){
-                    //idpi_util_fifo_cache_read(temp0_fifo, i, 1, parser_cursor);
-                    idpi_util_fifo_cache_read(ptr->request_fifo_cache_ptr, i, 1, parser_cursor);
-                    if(parser_cursor[0]<0x10)
-                        printf("0%x ", parser_cursor[0]);
-                    else
-                        printf("%x ", parser_cursor[0]);
-                    if((i+1)%8==0)
-                        printf("\n");
-                }
-                printf("\n");
+                
                 
                 idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset, drda_len, 2);
                 idpi_util_fifo_cache_update(ptr->request_fifo_cache_ptr, offset+6, drda_0len, 2);
@@ -789,7 +720,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                     *((uint64_t *) temp) = start_time;
                     
                     ptr->operation_handle = hili_send_module_send_log_prepare(ptr->session_id, 0, 0x15, OPERATION_LOG);
-                    printf("\nPREPARE OPERATION LOG %d at line %d\n\n", ptr->operation_handle, __LINE__);
                     
                     hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_FLOW_SIGN, flow_sign, 21, 0, SEND_NOT_IMMEDIATELY);
                     hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_SIGN, temp, 8, 0, SEND_NOT_IMMEDIATELY);
@@ -891,7 +821,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 			while(ptr->log_location[1] < ptr->drda_pkt_length)
 			{
 				cc++;
-				printf(" ptr->drda_pkt_length is %d, ptr->log_location[1] is %d at line %d\n", ptr->drda_pkt_length,ptr->log_location[1],__LINE__);
 				len_flag = parser_cursor[0];
 				len_flag = len_flag << 8;
 				len_flag += parser_cursor[1];
@@ -919,7 +848,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
         
 		case HILI_DB2_TYPE_QRYDSC:
 		{
-			printf("HILI_DB2_TYPE_QRYDSC\n");
 			ptr->need_to_log = QRYDTA;
 			ptr->log_location[0] = (HILI_DB2_HEAD_LEN) + ptr->qrydsc_len;
 			ptr->log_length[0] = ptr->drda_pkt_length - ptr->log_location[0];
@@ -928,7 +856,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 			{
 				if(!ptr->operation_handle)
 				{
-					
                     printf("[ERROR]NO request for pkt QRYDTA at line %d\n",__LINE__);
                     return HILI_DB2_ERROR;
 				}
@@ -1013,7 +940,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         int f_i, digit, first_no_zero;
                         first_no_zero = 0;
                         int int_len = col_size[i]*2-1-float_dec[i];
-                        printf ("cur_loc is %d at line %d\n",cur_loc,__LINE__);
+                        //printf ("cur_loc is %d at line %d\n",cur_loc,__LINE__);
                         for(f_i = 1, digit = 0; f_i <= col_size[i]-1; f_i++){
                             idpi_util_fifo_cache_read(fifo_cache_ptr, offset+ptr->qrydsc_len+HILI_DB2_HEAD_LEN+cur_loc+f_i, 1, now_f_cursor); 
                             
@@ -1113,7 +1040,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                             for(ii=0; ii<col_size[i]; ii++){
                                 idpi_util_fifo_cache_read(fifo_cache_ptr, offset+ptr->qrydsc_len+HILI_DB2_HEAD_LEN+cur_loc+ii, 1, now_cursor); 
                                 now_int += now_cursor[0]<<(swift_*8);
-                                printf("now_cursor[0]=%x, now_int=%x\n",now_cursor[0],now_int);
+                                //printf("now_cursor[0]=%x, now_int=%x\n",now_cursor[0],now_int);
                                 swift_ ++;
                             }
                             hili_db2_parse_itoa(now_int, number);
@@ -1144,8 +1071,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                 
             }
 			
-            printf("\nSTARTING POINT: %d\nLENGTH: %d\n\n", offset+ptr->log_location[0], ptr->log_length[0]);
-			
             hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, end_flag, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);   
                 
 			hili_send_module_send_log_add_long(ptr->operation_handle, OPR_REP_SIZE, ptr->drda_pkt_length, SEND_NOT_IMMEDIATELY);
@@ -1154,7 +1079,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 			end_time = hili_get_ms_time64();
 			hili_send_module_send_log_add_time(ptr->operation_handle, OPR_END_TIME, end_time, SEND_NOT_IMMEDIATELY);
             temp_opr_log = hili_send_module_send_log_send_immediately(ptr->operation_handle);
-            printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
+            //printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
 			hili_send_module_send_log_finish(ptr->operation_handle);
             ptr->operation_handle = 0;
 			
@@ -1166,7 +1091,6 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 		
 		case HILI_DB2_TYPE_SECCHK:
 		{
-			printf("HILI_DB2_TYPE_SECCHK\n");
 			ptr->need_to_log = SECCHK;
 			ptr->log_location[0] = (HILI_DB2_HEAD_LEN + HILI_DB2_PARA_HEAD_LEN);
 			
@@ -1199,13 +1123,13 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 						idpi_util_fifo_cache_read(fifo_cache_ptr, offset + ptr->log_location[i], username_length, username);
 						
 						ii = 0;
-						for(;ii<username_length;ii++)
+						/* for(;ii<username_length;ii++)
 						{
                             printf("%x -> ", username[ii]);
 							username[ii] = HILI_DB2_E2A[username[ii]];
                             printf("%x :  ", username[ii]);
                             printf("%c\n", username[ii]);
-						}
+						} */
                         
 						hili_send_module_send_log_add_bytes(ptr->session_handle, SES_LOGIN_NAME, username, username_length, 0, SEND_NOT_IMMEDIATELY);
 					}
@@ -1235,7 +1159,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 			for(;ii<password_length;ii++){
 				password[ii] = HILI_DB2_E2A[password[ii]];
 				//printf("%c",*(password+ii));
-			}*/
+			}
             printf("before fillin: \n");
             for(i=0; i<ptr->drda_pkt_length+40; i++){
                 idpi_util_fifo_cache_read(fifo_cache_ptr, offset+i, 1, parser_cursor);
@@ -1246,7 +1170,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                 if((i+1)%8==0)
                     printf("\n");
             }
-            printf(" at line %d\n", __LINE__);
+            printf(" at line %d\n", __LINE__);*/
             
             if(ptr->function_flags & 0x04){
                 int fillin_result = hili_db2_parse_passwd_fillin_process(ptr, username, password, ptr->pwd_len, offset);
@@ -1261,15 +1185,13 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 		
 		case HILI_DB2_TYPE_ACCRDBRM:
 		{
-			printf("HILI_DB2_TYPE_ACCRDBRM\n");
 			ptr->log_location[0] = (HILI_DB2_HEAD_LEN + HILI_DB2_PARA_HEAD_LEN);
 			
 			uint8_t version[10];
 			
 			int i = 0;
 			int j = 0;
-			while(j < 50)
-			{
+			while(j < 20){
 				idpi_util_fifo_cache_read(fifo_cache_ptr, offset + ptr->log_location[0] - HILI_DB2_PARA_HEAD_LEN, HILI_DB2_PARA_HEAD_LEN, parser_cursor);
 				len_flag = parser_cursor[0];
 				len_flag = len_flag << 8;
@@ -1278,24 +1200,13 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 				typ_flag = typ_flag << 8;
 				typ_flag += parser_cursor[3];
 				
-				if(typ_flag==DRDA_DATA_PRD_SPC_IDF)
-				{
+				if(typ_flag==DRDA_DATA_PRD_SPC_IDF){
 					uint8_t version_length = len_flag - HILI_DB2_PARA_HEAD_LEN;
 					idpi_util_fifo_cache_read(fifo_cache_ptr, offset + ptr->log_location[0], version_length, version);
-					
-					int ii = 0;
-					//printf("\nversion_length is %d, version is ",ptr->version_length);
-					for(;ii<version_length;ii++)
-					{
-						version[ii] = HILI_DB2_E2A[version[ii]];
-						printf("%c\n",*(version+ii));
-					}
-					//printf(" at line %d\n",__LINE__);
 					hili_send_module_send_log_add_bytes(ptr->session_handle, SES_PRO_VER, version, version_length, 0, SEND_NOT_IMMEDIATELY);
 					break;
 				}
-				else
-				{
+				else{
 					ptr->log_location[0] ++;
 				}
 				j ++;
@@ -1351,7 +1262,7 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
     }
     else if(HILI_DB2_DIRECTION_RESPONSE == ptr->direction)
     {
-        printf("db2_cache_begin at line %d\n", __LINE__);
+        //printf("db2_cache_begin at line %d\n", __LINE__);
         if(buf_len != idpi_util_fifo_cache_add(ptr->response_fifo_cache_ptr, buf, buf_len))
         {
             printf("hili_db2_parse_cache_message(ptr) == HILI_DB2_ERROR\n");
@@ -1369,12 +1280,6 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
     if(db2_data_submit == NULL){
         return HILI_DB2_ERROR;
     }
-    // if(HILI_DB2_DIRECTION_REQUEST == ptr->direction){
-        // db2_data_submit->fifo_cache_ptr = ptr->request_fifo_cache_ptr;
-    // }
-    // else{
-        // db2_data_submit->fifo_cache_ptr = ptr->response_fifo_cache_ptr;
-    // }
 
     db2_data_submit->direction = ptr->direction;
     db2_data_submit->ftp_parse_control.srv_ip = 0;
@@ -1391,8 +1296,8 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 			break;
 
 		hili_db2_parse_header(ptr, cache_offset);
-        printf("\nrest_in_fifo is %d\n", rest_in_fifo);
-        printf("drda_pkt_length is %x at line %d\n", ptr->drda_pkt_length,  __LINE__);
+        //printf("\nrest_in_fifo is %d\n", rest_in_fifo);
+        //printf("drda_pkt_length is %x at line %d\n", ptr->drda_pkt_length,  __LINE__);
         
         if(HILI_DB2_TYPE_PRPSQLSTT == ptr->content_type){
             ptr->stt_prepared = 1;
@@ -1402,11 +1307,11 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 			//printf("[ERROR]parse header at line %d\n",__LINE__);
 			return HILI_DB2_ERROR;
 		}
-		int type_define = hili_db2_print_type(ptr->content_type);
-		if(type_define == -1){
+		//int type_define = hili_db2_print_type(ptr->content_type);
+		//if(type_define == -1){
 			//printf("[NOTE]unknown pkt at line %d\n", __LINE__);
-			return HILI_DB2_ERROR;
-		}
+			//return HILI_DB2_ERROR;
+		//}
 		
         //对回复进行特殊处理，包合并
         if(HILI_DB2_TYPE_QRYDSC == ptr->content_type && ptr->qrydsc_len==0){
@@ -1468,7 +1373,7 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 		}
 	}
     
-    
+#ifdef INLINE_MODE
     if(HILI_DB2_DIRECTION_REQUEST == ptr->direction){
         db2_data_submit->fifo_cache_ptr = idpi_util_fifo_cache_copy(ptr->request_fifo_cache_ptr, 0, ptr->request_fifo_cache_ptr->size - ptr->tail_len);
     }
@@ -1477,7 +1382,8 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
     }
     
     hili_dummy_mitm_processing(ptr->mitm_flow_ptr, db2_data_submit);
-    
+#endif   
+   
     if(ptr->direction == HILI_DB2_DIRECTION_REQUEST){
 		idpi_util_fifo_cache_remove(ptr->request_fifo_cache_ptr, ptr->request_fifo_cache_ptr->size- ptr->tail_len, NULL);
 		//rest_in_fifo = ptr->request_fifo_cache_ptr->size;
