@@ -154,14 +154,15 @@ int hili_db2_print_header(hili_db2_parser_t *ptr)
 /*  ============================================
     determine whether this pkt worth parsing
     ============================================    */
-int hili_db2_worth_parse(hili_db2_content_type_e x)
+int hili_db2_worth_parse(hili_db2_content_type_e x, uint16_t qrydsc_len)
 {
-	if(x == 0x106e || x == 0x2414 || x == 0x241a || x == 0x241b || x == 0x2412 || x == 0x2201)
+	if(x == 0x106e || x == 0x2414 || (x == 0x241a && qrydsc_len>0) || x == 0x2201)
 		return 1;
 	else
 		return 0;
 }
 //CVMX_SHARED static uint64_t drda_session_log_id = 0;
+
 
 /*  ============================================
     initiate the details of parser structure
@@ -242,7 +243,8 @@ void* hili_db2_parse_flow_init(db2_parse_init_info_t* mitm_parse_init_info_ptr)
     *((uint64_t *) temp) = hili_get_ms_time64();
     
 	ptr->session_handle = hili_send_module_send_log_prepare(ptr->session_id, 0, 0x15, SESSION_LOG);
-	hili_send_module_send_log_add_bytes(ptr->session_handle, SES_FLOW_SIGN, flow_sign, 21, 0, SEND_NOT_IMMEDIATELY);
+	printf("\nSESSION LOG is %d at line %d\n\n", ptr->session_handle, __LINE__);
+    hili_send_module_send_log_add_bytes(ptr->session_handle, SES_FLOW_SIGN, flow_sign, 21, 0, SEND_NOT_IMMEDIATELY);
     hili_send_module_send_log_add_ipv4(ptr->session_handle, SES_SRC_IP, ptr->client_ip, SEND_NOT_IMMEDIATELY);
 	hili_send_module_send_log_add_ipv4(ptr->session_handle, SES_DST_IP, ptr->server_ip, SEND_NOT_IMMEDIATELY);
 	hili_send_module_send_log_add_int(ptr->session_handle, SES_SRC_PORT, ptr->client_port, SEND_NOT_IMMEDIATELY);
@@ -267,17 +269,19 @@ int hili_db2_parse_kill_flow(void* drda_flow_ptr)
 	uint64_t logout_time =  hili_get_ms_time64();
     if (ptr)
     {
+        printf("\nSEND SESSION LOG is %d at line %d\n\n", ptr->session_handle, __LINE__);
         if(ptr->session_handle)
 		{
 			hili_send_module_send_log_add_time(ptr->session_handle, SES_LOGOUT_TIME, logout_time, SEND_NOT_IMMEDIATELY);
 			temp_ses_log = hili_send_module_send_log_send_immediately(ptr->session_handle);
-            //printf("\nSEND SESSION LOG is %d at line %d\n\n", temp_ses_log, __LINE__);
+            printf("\nSEND SESSION LOG is %d at line %d\n\n", ptr->session_handle, __LINE__);
             hili_send_module_send_log_finish (ptr->session_handle);
 		}
+        printf("\nSEND OPERATION LOG is %d at line %d\n\n", ptr->operation_handle, __LINE__);
 		if(ptr->operation_handle)
 		{
             temp_opr_log = hili_send_module_send_log_send_immediately(ptr->operation_handle);
-            //printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
+            printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
 			hili_send_module_send_log_finish (ptr->operation_handle);
 		}
 		
@@ -644,6 +648,8 @@ int hili_db2_parse_passwd_fillin_process(hili_db2_parser_t* drda_flow_ptr, char 
 int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, uint8_t direction)
 {
     hili_db2_parser_t *ptr = drda_flow_ptr;
+    //hili_db2_print_type(ptr->content_type);
+    printf("\nOPERATION LOG is %d at line %d\n\n", ptr->operation_handle, __LINE__);
     uint16_t len_flag;
     uint16_t typ_flag;
 	uint64_t start_time, end_time;
@@ -720,7 +726,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                     *((uint64_t *) temp) = start_time;
                     
                     ptr->operation_handle = hili_send_module_send_log_prepare(ptr->session_id, 0, 0x15, OPERATION_LOG);
-                    
+                    printf("\nOPERATION LOG is %d at line %d\n\n", ptr->operation_handle, __LINE__);
                     hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_FLOW_SIGN, flow_sign, 21, 0, SEND_NOT_IMMEDIATELY);
                     hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_SIGN, temp, 8, 0, SEND_NOT_IMMEDIATELY);
                     hili_send_module_send_log_add_time(ptr->operation_handle, OPR_START_TIME, start_time, SEND_NOT_IMMEDIATELY);
@@ -1062,6 +1068,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         log_length_left -= col_size[i];
                         i++;
                     }
+                    
                         break;
                     default: {
                         i=0;
@@ -1079,7 +1086,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 			end_time = hili_get_ms_time64();
 			hili_send_module_send_log_add_time(ptr->operation_handle, OPR_END_TIME, end_time, SEND_NOT_IMMEDIATELY);
             temp_opr_log = hili_send_module_send_log_send_immediately(ptr->operation_handle);
-            //printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
+            printf("\nSEND OPERATION LOG %d is %d at line %d\n\n", ptr->operation_handle, temp_opr_log, __LINE__);
 			hili_send_module_send_log_finish(ptr->operation_handle);
             ptr->operation_handle = 0;
 			
@@ -1296,12 +1303,14 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 			break;
 
 		hili_db2_parse_header(ptr, cache_offset);
-        //printf("\nrest_in_fifo is %d\n", rest_in_fifo);
+        
+        printf("\nrest_in_fifo is %d at line %d\n", rest_in_fifo,__LINE__);
         //printf("drda_pkt_length is %x at line %d\n", ptr->drda_pkt_length,  __LINE__);
         
         if(HILI_DB2_TYPE_PRPSQLSTT == ptr->content_type){
             ptr->stt_prepared = 1;
         }
+        
         
 		if(ptr->drda_pkt_length < HILI_DB2_HEAD_LEN){
 			//printf("[ERROR]parse header at line %d\n",__LINE__);
@@ -1315,11 +1324,15 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 		
         //对回复进行特殊处理，包合并
         if(HILI_DB2_TYPE_QRYDSC == ptr->content_type && ptr->qrydsc_len==0){
-            if(rest_in_fifo < ptr->drda_pkt_length+HILI_DB2_HEAD_LEN) {
+            if(rest_in_fifo == ptr->drda_pkt_length) {
+                ptr->qrydsc_len = -1;
+                goto END_OF_MERGE;
+            }
+            else if(rest_in_fifo <= ptr->drda_pkt_length){
                 ptr->tail_len = rest_in_fifo;
                 break;
             }
-            
+            //不完善：万一dsc和dta不是紧接着的，则无法下行
             uint16_t type_next;
             uint8_t load_buffer[HILI_DB2_HEAD_LEN];
             idpi_util_fifo_cache_read(ptr->response_fifo_cache_ptr, cache_offset+ptr->drda_pkt_length\
@@ -1329,18 +1342,26 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
             type_next += load_buffer[9];
             
             if(type_next == 0x241b) {
+                if(rest_in_fifo < ptr->drda_pkt_length+HILI_DB2_HEAD_LEN) {
+                    ptr->tail_len = rest_in_fifo;
+                    break;
+                }
                 ptr->qrydsc_len = ptr->drda_pkt_length;
                 ptr->qrydta_len = load_buffer[0] << 8;
                 ptr->qrydta_len += load_buffer[1];
                 ptr->drda_pkt_length += ptr->qrydta_len;
                 //printf("ptr->drda_pkt_length is %d at line %d\n", ptr->drda_pkt_length, __LINE__);
             }
+            else {
+                ptr->qrydsc_len = -1;
+            }
+END_OF_MERGE:;
         }
-        
+        hili_db2_print_header(ptr);
 		if(rest_in_fifo >= ptr->drda_pkt_length)
 		{
             pkt_num ++;
-			if(hili_db2_worth_parse(ptr->content_type))
+			if(hili_db2_worth_parse(ptr->content_type, ptr->qrydsc_len))
             {
 				int ii;
                 for(ii=0;ii<3;ii++)
