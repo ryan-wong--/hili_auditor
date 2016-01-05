@@ -161,6 +161,14 @@ int hili_db2_worth_parse(hili_db2_content_type_e x, uint16_t qrydsc_len)
 	else
 		return 0;
 }
+
+int hili_db2_vaild_sql_statement(hili_db2_content_type_e x)
+{
+	if(x == HILI_DB2_TYPE_PRPSQLSTT || x == HILI_DB2_TYPE_EXCSQLIMM )
+		return 1;
+	else
+		return 0;
+}
 //CVMX_SHARED static uint64_t drda_session_log_id = 0;
 
 
@@ -1307,7 +1315,7 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
         printf("\nrest_in_fifo is %d at line %d\n", rest_in_fifo,__LINE__);
         //printf("drda_pkt_length is %x at line %d\n", ptr->drda_pkt_length,  __LINE__);
         
-        if(HILI_DB2_TYPE_PRPSQLSTT == ptr->content_type){
+        if(hili_db2_vaild_sql_statement(ptr->content_type)){
             ptr->stt_prepared = 1;
         }
         
@@ -1322,7 +1330,9 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
 			//return HILI_DB2_ERROR;
 		//}
 		
-        //对回复进行特殊处理，包合并
+        /*  if qrydsc is followed by qrydta, then merge them; 
+         *  otherwise, set ptr->qrydsc_len as -1, which will ensure hili_db2_worth_parse return 0
+        */
         if(HILI_DB2_TYPE_QRYDSC == ptr->content_type && ptr->qrydsc_len==0){
             if(rest_in_fifo == ptr->drda_pkt_length) {
                 ptr->qrydsc_len = -1;
@@ -1332,7 +1342,7 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
                 ptr->tail_len = rest_in_fifo;
                 break;
             }
-            //不完善：万一dsc和dta不是紧接着的，则无法下行
+            
             uint16_t type_next;
             uint8_t load_buffer[HILI_DB2_HEAD_LEN];
             idpi_util_fifo_cache_read(ptr->response_fifo_cache_ptr, cache_offset+ptr->drda_pkt_length\

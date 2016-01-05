@@ -139,6 +139,7 @@ typedef enum
     HILI_DB2_TYPE_ENDUOWRM = 0x220c,//1
     HILI_DB2_TYPE_SQLDTA = 0X2412,
 	HILI_DB2_TYPE_MONITORRD = 0x1c00,
+    HILI_DB2_TYPE_EXCSQLIMM = 0x200a,
 
 }hili_db2_content_type_e;
 
