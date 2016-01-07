@@ -17,6 +17,9 @@
 #define HILI_DB2_MESSAGE_IS_COMPLETE 0
 
 #define HILI_DB2_PARA_HEAD 9
+#define P_ACCOUNT_LEN 64
+
+#define DB2_PARSE_MODULE_MAGIC 0xcdcdcdcd
 
 //#define CONTENT_H_IN_TEST
 
@@ -248,7 +251,10 @@ typedef struct/*record the information of cache and buffer*/
     uint8_t pwd_len;
     uint8_t old_pwd_len;
     uint16_t num_para;		//for para mode
-    uint16_t qrydsc_len;
+    short qrydsc_len;
+    uint8_t col_type[100];
+    uint8_t col_size[100];
+    uint8_t float_dec[100];
     uint16_t qrydta_len;
 
     uint16_t drda_pkt_length; /*bytes to read in pkt buffer*/
