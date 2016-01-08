@@ -157,8 +157,8 @@ int hili_db2_print_header(hili_db2_parser_t *ptr)
     ============================================    */
 int hili_db2_worth_parse(hili_db2_content_type_e x)
 {
-	if(x == 0x106e || x == 0x2414 || x == 0x241a || x == 0x241b || x == 0x2201)
-    //if(x == 0x106e || x == 0x2414 || x == 0x2201)
+	//if(x == 0x106e || x == 0x2414 || x == 0x241a || x == 0x241b || x == 0x2201)
+    if(x == 0x106e || x == 0x2201)
 		return 1;
 	else
 		return 0;
@@ -186,7 +186,7 @@ int hili_db2_parse_structure_init(hili_db2_parser_t *drda_flow_ptr)
     ptr->content_type = 0;
     ptr->need_to_log = UNSET;
     ptr->drda_pkt_length = 0;
-    
+    ptr->col_num = 0;
     ptr->old_pwd_len = 0;
     ptr->pwd_len = 0;
     ptr->tail_len = 0;
@@ -715,7 +715,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 	{
 		case HILI_DB2_TYPE_SQLSTT:
 		{
-            
+            printf("[DB2]HILI_DB2_TYPE_SQLSTT at line %d\n",__LINE__);
             if(ptr->stt_prepared == 0){
                 goto STT_END;
             }
@@ -899,6 +899,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
 		
         case HILI_DB2_TYPE_QRYDSC:
         {
+            printf("[DB2]HILI_DB2_TYPE_QRYDSC at line %d\n",__LINE__);
             uint16_t col_count = 0;
             int log_description_left =  ptr->drda_pkt_length - HILI_DB2_HEAD_LEN - 15 - 3;
             log_description_left = log_description_left/3;
@@ -940,15 +941,18 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         ptr->col_size[col_count] += parser_cursor[2];
                         break;
                 }
-                
+                printf("\ncol_type[%d]=%d, col_size[%d]=%d\n\n",col_count, ptr->col_type[col_count], col_count, ptr->col_size[col_count]);
                 log_description_left --;
                 col_count ++;
             }
+            ptr->col_num = col_count;
+            printf("ptr->col_num = %d\n",ptr->col_num);
             
         }break;
         
 		case HILI_DB2_TYPE_QRYDTA:
 		{
+            printf("[DB2]HILI_DB2_TYPE_QRYDTA at line %d\n",__LINE__);
 			ptr->need_to_log = QRYDTA;
 			ptr->log_location[0] = (HILI_DB2_HEAD_LEN);
 			ptr->log_length[0] = ptr->drda_pkt_length - ptr->log_location[0];
@@ -977,18 +981,52 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
             int log_length_left = ptr->log_length[0];
             
             
-            int i = 0, cur_loc = 1;
+            int i = 0, cur_loc = 0, is_row_head = 1;
             uint8_t dot[1] = {0x2e}, space[1] = {0x20};
             //write each colume to the log, row by row
-            
+            printf("LOG_LENGTH_LEFT=%d\n", log_length_left);
+            log_length_left = log_length_left-80;
             while(log_length_left > 0) {
                 idpi_util_fifo_cache_read(fifo_cache_ptr, offset+HILI_DB2_HEAD_LEN+cur_loc, 2, parser_cursor); 
-                //printf("parser_cursor[0]=%x, parser_cursor[1]=%x\n",parser_cursor[0],parser_cursor[1]);
+                printf("parser_cursor0=%x, parser_cursor1=%x\n",parser_cursor[0],parser_cursor[1]);
+                printf("I = %d\n",i);
+                if(is_row_head == 1){ 
+                    printf("REACH HERE=%d\n", __LINE__);
+                    parser_cursor[0] = 0x0d;
+                    hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, parser_cursor, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
+                    cur_loc ++;
+                    log_length_left --;
+                    is_row_head = 0;
+                    continue;
+                }
+                else if(parser_cursor[0] == 0xff){
+                    cur_loc ++;
+                    log_length_left --;
+                    printf("i = %d at line %d\n",i,__LINE__);
+                    i = (i+1)>=ptr->col_num? 0:i+1;
+                    is_row_head = i==0? 1:0;
+                    continue;
+                }
+                else if(parser_cursor[0] == 0x00 && ptr->col_type[i] != 4) {
+                    //列之间的分隔符如何设定？暂且设为0x20
+                    printf("REACH HERE=%d\n", __LINE__);
+                    parser_cursor[0] = 0x20;
+                    hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, parser_cursor, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
+                    cur_loc ++;
+                    log_length_left --;
+                    continue;
+                }
+                
+                
+                
                 if(ptr->col_type[i] == 4){
-                    uint8_t parser_f_cursor[1] = {0};
-                    idpi_util_fifo_cache_read(fifo_cache_ptr, offset+HILI_DB2_HEAD_LEN+cur_loc+ptr->col_size[i], 1, parser_f_cursor);
-                    parser_f_cursor[0] = parser_f_cursor[0] & 0x0f;
                     
+                    uint8_t parser_f_cursor[1] = {0};
+                    idpi_util_fifo_cache_read(fifo_cache_ptr, offset+HILI_DB2_HEAD_LEN+cur_loc+ptr->col_size[i]-1, 1, parser_f_cursor);
+                    printf("parser_f_cursor[0]=%d\n",parser_f_cursor[0]);
+                    parser_f_cursor[0] = parser_f_cursor[0] & 0x0f;
+                    printf("parser_f_cursor[0]=%d\n",parser_f_cursor[0]);
+                    printf("cur_loc=%d, col_type[%d]=%d, col_size[%d]=%d!!! at line %d\n",cur_loc,i,ptr->col_type[i],i,ptr->col_size[i], __LINE__);
                     //if the parameter type is float
                     if(parser_f_cursor[0] == 0x0c){
                         uint8_t now_float[1] = {0}, now_f_cursor[1] = {0};
@@ -1033,38 +1071,25 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, now_float, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
                         cur_loc += ptr->col_size[i];
                         log_length_left -= ptr->col_size[i];
-                        i++;
+                        printf("\nCOME INTO PLUS at line %d\n", __LINE__);
+                        printf("i = %d at line %d\n",i,__LINE__);
+                        i = (i+1)>=ptr->col_num? 0:i+1;
+                        is_row_head = i==0? 1:0;
                     }
                     else {
                         cur_loc ++;
                         log_length_left --;
                     }
-                }
-                
-                
-                if(parser_cursor[0] == 0x00) {
-                    //列之间的分隔符如何设定？暂且设为0x20
-                    parser_cursor[0] = 0x20;
-                    hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, parser_cursor, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
-                    cur_loc ++;
-                    log_length_left --;
                     continue;
                 }
-                else if(parser_cursor[0] == 0xff) {
-                    //换行符如何设定？暂且设为0x0d
-                    parser_cursor[0] = 0x0d;
-                    hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, parser_cursor, 1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
-                    cur_loc ++;
-                    log_length_left --;
-                    continue;
-                }
+                
                 
                 //写入日志内容
                 
                 switch(ptr->col_type[i]) {
                     case 1: {
                         ptr->col_size[i] = parser_cursor[0]+1;
-                        //printf("cur_loc=%d, i=%d, col_type[i]=%d, col_size[i]=%d!!! at line %d\n",cur_loc,i,col_type[i],col_size[i], __LINE__);
+                        printf("cur_loc=%d, col_type[%d]=%d, col_size[%d]=%d!!! at line %d\n",cur_loc,i,ptr->col_type[i],i,ptr->col_size[i], __LINE__);
                         
                         hili_send_module_send_log_add_bytes2(ptr->operation_handle, OPR_REPLY, fifo_cache_ptr,\
                             offset+ptr->qrydsc_len+HILI_DB2_HEAD_LEN+cur_loc+1, ptr->col_size[i]-1, COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
@@ -1075,7 +1100,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                     }
                         break;
                     case 2: {
-                        //printf("cur_loc=%d, i=%d, col_type[i]=%d, col_size[i]=%d!!! at line %d\n",cur_loc,i,col_type[i],col_size[i], __LINE__);
+                        printf("cur_loc=%d, col_type[%d]=%d, col_size[%d]=%d!!! at line %d\n",cur_loc,i,ptr->col_type[i],i,ptr->col_size[i], __LINE__);
                         
                         hili_send_module_send_log_add_bytes2(ptr->operation_handle, OPR_REPLY, fifo_cache_ptr,\
                             offset+HILI_DB2_HEAD_LEN+cur_loc, ptr->col_size[i], COMPLETE_NO_SPILT, SEND_NOT_IMMEDIATELY);
@@ -1087,7 +1112,7 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         break;
                     case 3:{
                         //按照反序把整型数读进 operation_handle
-                        //printf("cur_loc=%d, i=%d, col_type[i]=%d, col_size[i]=%d!!! at line %d\n",cur_loc,i,col_type[i],col_size[i], __LINE__);
+                        printf("cur_loc=%d, col_type[%d]=%d, col_size[%d]=%d!!! at line %d\n",cur_loc,i,ptr->col_type[i],i,ptr->col_size[i], __LINE__);
                         int ii, swift_ = 0, now_int = 0;
                         char number[20];
                         uint8_t now_cursor[1] = {0};
@@ -1116,12 +1141,18 @@ int hili_db2_parse_payload(hili_db2_parser_t* drda_flow_ptr, uint64_t offset, ui
                         hili_send_module_send_log_add_bytes(ptr->operation_handle, OPR_REPLY, space, 1, 0, SEND_NOT_IMMEDIATELY);
                         cur_loc += ptr->col_size[i];
                         log_length_left -= ptr->col_size[i];
-                        i++;
+                        printf("\nCOME INTO PLUS at line %d\n", __LINE__);
+                        printf("i = %d at line %d\n",i,__LINE__);
+                        i = (i+1)>=ptr->col_num? 0:i+1;
+                        is_row_head = i==0? 1:0;
                     }
                     
                         break;
                     default: {
-                        i=0;
+                        printf("\nCOME INTO PLUS at line %d\n", __LINE__);
+                        printf("i = %d at line %d\n",i,__LINE__);
+                        i = (i+1)>=ptr->col_num? 0:i+1;
+                        is_row_head = i==0? 1:0;
                     }
                         break;
                 }
@@ -1293,6 +1324,8 @@ int hili_db2_parse_processing(void* drda_flow_ptr, db2_data_exchange_t *mitm_dat
         printf("[DB2]Cannot read the up_data at line %d\n",__LINE__);
         return HILI_DB2_ERROR;
     }
+    printf("\n\n[DB2]DB2_PARSE_BEGIN WITH LEN %d AT LINE %d\n", mitm_data_up_ptr->buf_len, __LINE__);
+    printf("\n\n[DB2]DB2_PARSE_BEGIN WITH LEN %d AT LINE %d\n", mitm_data_up_ptr->buf_len, __LINE__);
     printf("\n\n[DB2]DB2_PARSE_BEGIN WITH LEN %d AT LINE %d\n", mitm_data_up_ptr->buf_len, __LINE__);
 	hili_db2_parser_t *ptr = (hili_db2_parser_t *)drda_flow_ptr;
 	void *buf = (*mitm_data_up_ptr).buf_ptr;
